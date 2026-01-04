@@ -1,40 +1,106 @@
 <!doctype html>
-<html>
+<html lang="vi">
 <head>
   <meta charset="utf-8" />
-  <title>Check Key</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Key Checker</title>
 </head>
-<body style="font-family: Arial; max-width: 420px; margin: 40px auto;">
-  <h2>Key Checker</h2>
 
-  <input id="key" placeholder="Nhập key..." style="width:100%;padding:10px;font-size:16px">
-  <button onclick="checkKey()" style="width:100%;padding:10px;margin-top:10px;">
+<body style="font-family: Arial, sans-serif; max-width: 520px; margin: 40px auto; padding: 0 14px;">
+  <h2 style="margin: 0 0 14px;">Key Checker</h2>
+
+  <label for="key" style="display:block; margin-bottom: 6px;">Nhập key</label>
+  <input id="key" placeholder="Ví dụ: TX-111"
+         style="width:100%;padding:12px;font-size:16px;box-sizing:border-box;border:1px solid #ccc;border-radius:8px;">
+
+  <button id="btn" style="width:100%;padding:12px;margin-top:10px;border:0;border-radius:8px;cursor:pointer;">
     Check
   </button>
 
-  <p id="out" style="margin-top:15px;font-weight:bold;"></p>
+  <div id="out"
+       style="margin-top:14px;padding:12px;border-radius:10px;border:1px solid #e5e5e5;min-height:52px;box-sizing:border-box;">
+    Nhập key rồi bấm Check.
+  </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbzVpZeJSMmrPGL1kSGY1O4M-s59mOQcYwPiSFUcDxQXqFUfRKEx8Kve-gBF2uRsZ4rQ/exec";  // <-- dán link /exec
+    // ✅ Dán link /exec của Apps Script tại đây
+    const API_URL = "PASTE_YOUR_EXEC_URL_HERE";
+
+    const keyInput = document.getElementById("key");
+    const btn = document.getElementById("btn");
+    const out = document.getElementById("out");
+
+    function setBox(text, type = "info") {
+      const styles = {
+        info:    { bg: "#f7f7f7", bd: "#e5e5e5" },
+        loading: { bg: "#fff7e6", bd: "#ffd59e" },
+        ok:      { bg: "#eaffea", bd: "#9be59b" },
+        bad:     { bg: "#ffecec", bd: "#ffb1b1" }
+      };
+      const s = styles[type] || styles.info;
+      out.style.background = s.bg;
+      out.style.borderColor = s.bd;
+      out.textContent = text;
+    }
 
     async function checkKey() {
-      const key = document.getElementById("key").value.trim();
-      const out = document.getElementById("out");
+      const key = keyInput.value.trim();
 
-      if (!key) { out.textContent = "⚠️ Chưa nhập key"; return; }
+      if (!API_URL || API_URL.includes("PASTE_YOUR_EXEC_URL_HERE")) {
+        setBox("❌ Bạn chưa dán API_URL (/exec) vào code HTML.", "bad");
+        return;
+      }
 
-      out.textContent = "Đang kiểm tra...";
+      if (!key) {
+        setBox("⚠️ Chưa nhập key", "bad");
+        keyInput.focus();
+        return;
+      }
+
+      setBox("⏳ Đang kiểm tra...", "loading");
+      btn.disabled = true;
 
       try {
-        const res = await fetch(API_URL + "?key=" + encodeURIComponent(key));
+        const url = API_URL + "?key=" + encodeURIComponent(key) + "&_=" + Date.now(); // chống cache
+        const res = await fetch(url, { method: "GET", cache: "no-store" });
+
+        if (!res.ok) {
+          setBox("❌ API lỗi: HTTP " + res.status, "bad");
+          return;
+        }
+
         const data = await res.json();
 
-        out.textContent = data.valid ? "✅ Key hợp lệ" : ("❌ Không hợp lệ: " + data.reason);
+        if (data.valid) {
+          // data có thể gồm: remaining_minutes, expires_at, now, note
+          let msg = "✅ Key hợp lệ";
+          if (typeof data.remaining_minutes === "number") {
+            msg += ` (còn ${data.remaining_minutes} phút)`;
+          }
+          if (data.expires_at) msg += `\nHết hạn: ${data.expires_at}`;
+          if (data.now) msg += `\nHiện tại: ${data.now}`;
+          if (data.note) msg += `\nGhi chú: ${data.note}`;
+
+          setBox(msg, "ok");
+        } else {
+          let msg = "❌ Không hợp lệ: " + (data.reason || "Unknown");
+          if (data.expires_at) msg += `\nHết hạn: ${data.expires_at}`;
+          if (data.now) msg += `\nHiện tại: ${data.now}`;
+          setBox(msg, "bad");
+        }
+
       } catch (e) {
-        out.textContent = "❌ Lỗi gọi API (sai URL hoặc chưa deploy Anyone)";
+        setBox("❌ Lỗi gọi API (sai URL hoặc chưa deploy Anyone)", "bad");
         console.log(e);
+      } finally {
+        btn.disabled = false;
       }
     }
+
+    btn.addEventListener("click", checkKey);
+    keyInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") checkKey();
+    });
   </script>
 </body>
 </html>
