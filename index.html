@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Check Key</title>
+</head>
+<body style="font-family: Arial; max-width: 420px; margin: 40px auto;">
+  <h2>Key Checker</h2>
+
+  <input id="key" placeholder="Nhập key..." style="width:100%;padding:10px;font-size:16px">
+  <button onclick="checkKey()" style="width:100%;padding:10px;margin-top:10px;">
+    Check
+  </button>
+
+  <p id="out" style="margin-top:15px;font-weight:bold;"></p>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbzVpZeJSMmrPGL1kSGY1O4M-s59mOQcYwPiSFUcDxQXqFUfRKEx8Kve-gBF2uRsZ4rQ/exec";  // <-- dán link /exec
+
+    async function checkKey() {
+      const key = document.getElementById("key").value.trim();
+      const out = document.getElementById("out");
+
+      if (!key) { out.textContent = "⚠️ Chưa nhập key"; return; }
+
+      out.textContent = "Đang kiểm tra...";
+
+      try {
+        const res = await fetch(API_URL + "?key=" + encodeURIComponent(key));
+        const data = await res.json();
+
+        out.textContent = data.valid ? "✅ Key hợp lệ" : ("❌ Không hợp lệ: " + data.reason);
+      } catch (e) {
+        out.textContent = "❌ Lỗi gọi API (sai URL hoặc chưa deploy Anyone)";
+        console.log(e);
+      }
+    }
+  </script>
+</body>
+</html>
